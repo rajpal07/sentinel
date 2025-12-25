@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { TradeManager } from '@/components/dashboard/trade-manager'
 import { RecentTradesList } from '@/components/dashboard/recent-trades-list'
 import { Activity, Shield, TrendingUp, AlertTriangle, CheckCircle2, XCircle, Clock } from 'lucide-react'
+import { getStartOfTodayIST, getCurrentISTTimeMinutes, getNowIST, formatIST } from '@/lib/date-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,15 +23,15 @@ export default async function DashboardPage() {
     }
 
     // Fetch Data
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    // Use IST start of day for querying "today's" trades
+    const startOfTodayIST = getStartOfTodayIST()
 
     // 1. Fetch Today's Trades (for stats)
     const { data: todaysTrades } = await supabase
         .from('trades')
         .select('*')
         .eq('user_id', user.id)
-        .gte('executed_at', today.toISOString())
+        .gte('executed_at', startOfTodayIST) // Using IST midnight
         .order('executed_at', { ascending: false })
 
     // 2. Fetch Recent Trades (for ledger)
@@ -53,9 +54,9 @@ export default async function DashboardPage() {
     const isLossViolation = dailyPnL <= -Math.abs(rulesMaxLoss)
     const isTradeCountViolation = tradesCount >= rulesMaxTrades
 
-    // Check if within trading window (simple check)
-    const now = new Date()
-    const currentTime = now.getHours() * 60 + now.getMinutes()
+    // Check if within trading window (IST check)
+    // We strictly use IST minutes for the comparison
+    const currentTimeMin = getCurrentISTTimeMinutes()
 
     let isTimeViolation = false
     if (rules?.trading_window_start && rules?.trading_window_end) {
@@ -64,16 +65,9 @@ export default async function DashboardPage() {
         const startTime = startH * 60 + startM
         const endTime = endH * 60 + endM
 
-        console.log('--- DEBUG TRADING WINDOW ---')
-        console.log('Server Date:', now.toString())
-        console.log('CurrentTime (min):', currentTime)
-        console.log('Window:', rules.trading_window_start, 'to', rules.trading_window_end)
-        console.log('Start (min):', startTime, 'End (min):', endTime)
-
         // Assume window is within same day for simplicity
-        if (currentTime < startTime || currentTime > endTime) {
+        if (currentTimeMin < startTime || currentTimeMin > endTime) {
             isTimeViolation = true
-            console.log('VIOLATION DETECTED')
         }
     }
 
@@ -93,7 +87,7 @@ export default async function DashboardPage() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Trading Terminal</h1>
-                    <p className="text-muted-foreground">Session Active • {new Date().toLocaleDateString()}</p>
+                    <p className="text-muted-foreground">Session Active • {formatIST(getNowIST())}</p>
                 </div>
 
                 <div className="flex items-center gap-4 w-full md:w-auto">
@@ -221,7 +215,7 @@ export default async function DashboardPage() {
                             <div className="flex items-center gap-3">
                                 {isTimeViolation ? <Clock className="w-4 h-4 text-red-500" /> : <Clock className="w-4 h-4 text-green-500/50" />}
                                 <div className="flex flex-col">
-                                    <span className={`text-sm font-medium ${isTimeViolation ? 'text-red-400' : 'text-foreground'}`}>Trading Window</span>
+                                    <span className={`text-sm font-medium ${isTimeViolation ? 'text-red-400' : 'text-foreground'}`}>Trading Window (IST)</span>
                                     <span className="text-xs text-muted-foreground">{rules?.trading_window_start} - {rules?.trading_window_end}</span>
                                 </div>
                             </div>
@@ -241,20 +235,7 @@ export default async function DashboardPage() {
                 </h2>
                 <RecentTradesList trades={recentTrades || []} />
             </div>
-
-            {/* DEBUG SECTION */}
-            <Card className="bg-yellow-500/10 border-yellow-500/50 p-4">
-                <h3 className="font-bold text-yellow-500 mb-2">Debug Info (Take a screenshot/Check this)</h3>
-                <pre className="text-xs font-mono text-muted-foreground overflow-auto">
-                    {JSON.stringify({
-                        serverTime: now.toString(),
-                        currentTimeMin: currentTime,
-                        windowStart: rules?.trading_window_start,
-                        windowEnd: rules?.trading_window_end,
-                        isTimeViolation
-                    }, null, 2)}
-                </pre>
-            </Card>
         </div>
     )
 }
+
