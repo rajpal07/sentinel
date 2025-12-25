@@ -64,9 +64,16 @@ export default async function DashboardPage() {
         const startTime = startH * 60 + startM
         const endTime = endH * 60 + endM
 
+        console.log('--- DEBUG TRADING WINDOW ---')
+        console.log('Server Date:', now.toString())
+        console.log('CurrentTime (min):', currentTime)
+        console.log('Window:', rules.trading_window_start, 'to', rules.trading_window_end)
+        console.log('Start (min):', startTime, 'End (min):', endTime)
+
         // Assume window is within same day for simplicity
         if (currentTime < startTime || currentTime > endTime) {
             isTimeViolation = true
+            console.log('VIOLATION DETECTED')
         }
     }
 
@@ -234,6 +241,20 @@ export default async function DashboardPage() {
                 </h2>
                 <RecentTradesList trades={recentTrades || []} />
             </div>
+
+            {/* DEBUG SECTION */}
+            <Card className="bg-yellow-500/10 border-yellow-500/50 p-4">
+                <h3 className="font-bold text-yellow-500 mb-2">Debug Info (Take a screenshot/Check this)</h3>
+                <pre className="text-xs font-mono text-muted-foreground overflow-auto">
+                    {JSON.stringify({
+                        serverTime: now.toString(),
+                        currentTimeMin: currentTime,
+                        windowStart: rules?.trading_window_start,
+                        windowEnd: rules?.trading_window_end,
+                        isTimeViolation
+                    }, null, 2)}
+                </pre>
+            </Card>
         </div>
     )
 }
