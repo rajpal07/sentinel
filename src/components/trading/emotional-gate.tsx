@@ -63,7 +63,7 @@ export function EmotionalGate({ onPass, onFail, open, onOpenChange }: EmotionalG
                             <div key={i} className="flex items-center justify-between gap-4 p-3 bg-muted/20 rounded-lg">
                                 <div className="flex items-center">
                                     <span className="text-sm font-medium">{q.text}</span>
-                                    <FieldHint content={q.hint} side="right" />
+                                    <FieldHint content={q.hint} />
                                 </div>
                                 <div className="flex gap-2">
                                     <Button
