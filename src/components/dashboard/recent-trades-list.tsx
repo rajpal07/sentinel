@@ -52,7 +52,10 @@ export function RecentTradesList({ trades }: { trades: Trade[] }) {
                                                 {trade.status}
                                             </span>
                                         </div>
-                                        <div className="text-xs text-muted-foreground truncate" suppressHydrationWarning>{new Date(trade.executed_at).toLocaleString()}</div>
+                                        <div className="text-xs text-muted-foreground truncate" suppressHydrationWarning>{new Date(trade.executed_at).toLocaleString(undefined, {
+                                            dateStyle: 'medium',
+                                            timeStyle: 'medium'
+                                        })}</div>
                                     </div>
                                 </div>
                                 <div className="text-right shrink-0 ml-2">
