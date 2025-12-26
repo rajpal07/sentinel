@@ -22,14 +22,8 @@ export function TradeManager({ status }: { status: 'ACTIVE' | 'LOCKED' }) {
     const router = useRouter() // Import from 'next/navigation' is needed in imports
 
     const handleGateFail = async () => {
-        console.log("Gate Failed. Attempting to lock session...")
         try {
-            const { data, error } = await supabase.rpc('lock_session', { p_reason: 'EMOTIONAL_CHECK_FAILED' })
-            if (error) {
-                console.error("RPC Error:", error)
-            } else {
-                console.log("Session Locked:", data)
-            }
+            await supabase.rpc('lock_session', { p_reason: 'EMOTIONAL_CHECK_FAILED' })
         } catch (e) {
             console.error("Exception during lock:", e)
         }
