@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Shield } from 'lucide-react'
 import { RecentTradesList } from '@/components/dashboard/recent-trades-list'
+import { ViolationsList } from '@/components/dashboard/violations-list'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,6 +21,12 @@ export default async function HistoryPage() {
         .select('*')
         .eq('user_id', user.id)
         .order('executed_at', { ascending: false })
+
+    const { data: violations } = await supabase
+        .from('violations')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
 
     return (
         <div className="space-y-6">
@@ -57,11 +64,7 @@ export default async function HistoryPage() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            {/* Placeholder for violations integration */}
-                            <div className="text-center py-12 text-muted-foreground">
-                                <Shield className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                                No violations recorded. Good discipline.
-                            </div>
+                            <ViolationsList violations={violations || []} />
                         </CardContent>
                     </Card>
                 </TabsContent>

@@ -4,6 +4,7 @@ import { AlertTriangle, Lock, ShieldAlert, ArrowLeft, ShieldCheck } from 'lucide
 import Link from 'next/link'
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
+import { isWithinTimeWindow } from '@/lib/date-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,7 +27,8 @@ export default async function ViolationPage() {
         .gte('executed_at', today.toISOString())
 
     // Fetch Daily Lock Status
-    const todayStr = today.toISOString().split('T')[0]
+    // Fix: Use current UTC date directly, avoiding local time shift from setHours(0,0,0,0)
+    const todayStr = new Date().toISOString().split('T')[0]
     const { data: dailyLock } = await supabase
         .from('daily_locks')
         .select('*')
@@ -45,7 +47,11 @@ export default async function ViolationPage() {
     const isTradeCountViolation = tradesCount >= rulesMaxTrades
     const isServerLock = !!dailyLock
 
-    const hasViolation = isLossViolation || isTradeCountViolation || isServerLock
+    const isTimeViolation = rules?.trading_window_start && rules?.trading_window_end
+        ? !isWithinTimeWindow(rules.trading_window_start, rules.trading_window_end)
+        : false
+
+    const hasViolation = isLossViolation || isTradeCountViolation || isServerLock || isTimeViolation
 
     // If no violation, show "All Good" state (or redirect)
     if (!hasViolation) {
@@ -85,6 +91,10 @@ export default async function ViolationPage() {
         violationReason = "Max Daily Trades Exceeded"
         violationLimit = rulesMaxTrades.toString() + " Trades"
         violationActual = tradesCount.toString() + " Trades"
+    } else if (isTimeViolation) {
+        violationReason = "Trading Window Closed"
+        violationLimit = `${rules.trading_window_start} - ${rules.trading_window_end}`
+        violationActual = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })
     }
 
     return (
