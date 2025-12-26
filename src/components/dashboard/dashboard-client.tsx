@@ -10,9 +10,10 @@ import { isWithinTimeWindow, getStartOfLocalDay, formatLocalTime } from '@/lib/d
 interface DashboardClientProps {
     initialTrades: any[]
     rules: any
+    isServerLocked: boolean
 }
 
-export function DashboardClient({ initialTrades, rules }: DashboardClientProps) {
+export function DashboardClient({ initialTrades, rules, isServerLocked }: DashboardClientProps) {
     const [currentTime, setCurrentTime] = useState(new Date())
     const [status, setStatus] = useState<'ACTIVE' | 'LOCKED'>('ACTIVE')
 
@@ -50,7 +51,7 @@ export function DashboardClient({ initialTrades, rules }: DashboardClientProps) 
     // Time Window Check
     const isTimeViolation = !isWithinTimeWindow(rules?.trading_window_start, rules?.trading_window_end)
 
-    const hasViolation = isLossViolation || isTradeCountViolation || isTimeViolation
+    const hasViolation = isLossViolation || isTradeCountViolation || isTimeViolation || isServerLocked
 
     useEffect(() => {
         setStatus(hasViolation ? 'LOCKED' : 'ACTIVE')

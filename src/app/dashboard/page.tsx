@@ -31,6 +31,17 @@ export default async function DashboardPage() {
         .gte('executed_at', recentTradesStartDate)
         .order('executed_at', { ascending: false })
 
-    return <DashboardClient initialTrades={initialTrades || []} rules={rules} />
+    // Fetch Lock Status
+    const today = new Date().toISOString().split('T')[0]
+    const { data: dailyLock } = await supabase
+        .from('daily_locks')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('lock_date', today)
+        .single()
+
+    const isServerLocked = !!dailyLock
+
+    return <DashboardClient initialTrades={initialTrades || []} rules={rules} isServerLocked={isServerLocked} />
 }
 

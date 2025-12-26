@@ -271,7 +271,8 @@ Trading window lockout:
 - Risk Amount (calculated from stop loss)
 - PnL (calculated if closed, null if open)
 - Status (OPEN or CLOSED)
-- Executed At (timestamp of submission)
+- Executed At (UTC timestamp of submission)
+- **Display Note**: On the dashboard, this UTC timestamp is converted and displayed in the user's Local Time.
 
 **Failed Emotional Gate**:
 - Nothing is saved to database
