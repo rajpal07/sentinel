@@ -36,7 +36,11 @@ export function TradeManager({ status }: { status: 'ACTIVE' | 'LOCKED' }) {
     return (
         <>
             {status === 'ACTIVE' ? (
-                <Button size="lg" onClick={() => setGateOpen(true)} className="bg-primary text-primary-foreground shadow-[0_0_20px_rgba(var(--primary),0.4)] hover:shadow-[0_0_30px_rgba(var(--primary),0.6)] transition-all cursor-pointer">
+                <Button
+                    size="lg"
+                    onClick={() => setGateOpen(true)}
+                    className="bg-gradient-to-r from-indigo-500 via-primary to-purple-600 text-white border-0 shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 font-bold tracking-wide"
+                >
                     <Plus className="w-5 h-5 mr-2" />
                     Log New Trade
                 </Button>

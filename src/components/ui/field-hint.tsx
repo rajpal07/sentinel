@@ -16,7 +16,7 @@ export function FieldHint({ content, side = "top" }: FieldHintProps) {
     return (
         <Popover>
             <PopoverTrigger asChild>
-                <Info className="w-4 h-4 text-muted-foreground/50 hover:text-primary cursor-help transition-colors ml-1.5 inline-block align-middle" />
+                <Info className="w-4 h-4 shrink-0 text-muted-foreground/50 hover:text-primary cursor-help transition-colors ml-1.5 inline-block align-middle" />
             </PopoverTrigger>
             <PopoverContent side={side} className="w-auto max-w-xs text-xs p-3">
                 <p>{content}</p>
