@@ -41,7 +41,8 @@ export default async function DashboardPage() {
         .single()
 
     const isServerLocked = !!dailyLock
+    const serverLockReason = dailyLock?.reason || null
 
-    return <DashboardClient initialTrades={initialTrades || []} rules={rules} isServerLocked={isServerLocked} />
+    return <DashboardClient initialTrades={initialTrades || []} rules={rules} isServerLocked={isServerLocked} serverLockReason={serverLockReason} />
 }
 

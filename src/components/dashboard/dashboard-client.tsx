@@ -11,9 +11,10 @@ interface DashboardClientProps {
     initialTrades: any[]
     rules: any
     isServerLocked: boolean
+    serverLockReason: string | null
 }
 
-export function DashboardClient({ initialTrades, rules, isServerLocked }: DashboardClientProps) {
+export function DashboardClient({ initialTrades, rules, isServerLocked, serverLockReason }: DashboardClientProps) {
     const [currentTime, setCurrentTime] = useState(new Date())
     const [status, setStatus] = useState<'ACTIVE' | 'LOCKED'>('ACTIVE')
 
@@ -158,6 +159,23 @@ export function DashboardClient({ initialTrades, rules, isServerLocked }: Dashbo
                         <CardDescription>Strict enforcement enabled</CardDescription>
                     </CardHeader>
                     <CardContent className="flex-1 space-y-4">
+
+                        {/* Server Lock / Emotional Gate Display */}
+                        {isServerLocked && (
+                            <div className="p-3 rounded-lg border flex items-center justify-between bg-red-500/10 border-red-500/50">
+                                <div className="flex items-center gap-3">
+                                    <XCircle className="w-4 h-4 text-red-500" />
+                                    <div className="flex flex-col">
+                                        <span className="text-sm font-medium text-red-400">Protocol Lock</span>
+                                        <span className="text-xs text-muted-foreground">
+                                            {serverLockReason === 'EMOTIONAL_CHECK_FAILED' ? 'Emotional Gate Failure' : 'System Lockdown'}
+                                        </span>
+                                    </div>
+                                </div>
+                                <span className="text-sm font-mono text-red-500 font-bold">LOCKED</span>
+                            </div>
+                        )}
+
                         {/* Daily Loss Rule */}
                         <div className={`p-3 rounded-lg border flex items-center justify-between ${isLossViolation
                             ? 'bg-red-500/10 border-red-500/50'

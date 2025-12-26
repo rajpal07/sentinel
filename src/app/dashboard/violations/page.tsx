@@ -25,6 +25,15 @@ export default async function ViolationPage() {
         .eq('user_id', user.id)
         .gte('executed_at', today.toISOString())
 
+    // Fetch Daily Lock Status
+    const todayStr = today.toISOString().split('T')[0]
+    const { data: dailyLock } = await supabase
+        .from('daily_locks')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('lock_date', todayStr)
+        .single()
+
     // Calculate Status
     const dailyPnL = todaysTrades?.reduce((acc: number, t: any) => acc + (Number(t.pnl) || 0), 0) || 0
     const tradesCount = todaysTrades?.length || 0
@@ -34,8 +43,9 @@ export default async function ViolationPage() {
 
     const isLossViolation = dailyPnL <= -Math.abs(rulesMaxLoss)
     const isTradeCountViolation = tradesCount >= rulesMaxTrades
+    const isServerLock = !!dailyLock
 
-    const hasViolation = isLossViolation || isTradeCountViolation
+    const hasViolation = isLossViolation || isTradeCountViolation || isServerLock
 
     // If no violation, show "All Good" state (or redirect)
     if (!hasViolation) {
@@ -63,7 +73,11 @@ export default async function ViolationPage() {
     let violationLimit = "$0.00"
     let violationActual = "$0.00"
 
-    if (isLossViolation) {
+    if (isServerLock) {
+        violationReason = dailyLock.reason === 'EMOTIONAL_CHECK_FAILED' ? "Emotional Gate Failure" : "Protocol Lockdown"
+        violationLimit = "Strict Protocol"
+        violationActual = "Locked"
+    } else if (isLossViolation) {
         violationReason = "Daily Loss Limit Exceeded"
         violationLimit = "-$" + rulesMaxLoss.toFixed(2)
         violationActual = "-$" + Math.abs(dailyPnL).toFixed(2)
@@ -131,9 +145,11 @@ export default async function ViolationPage() {
 
             <div className="max-w-md text-center text-xs text-muted-foreground">
                 <p>
-                    {isLossViolation ?
-                        `"The goal of a successful trader is to make the best trades. Money is secondary."` :
-                        `"It is better to do nothing than to do what is wrong. For whatever you do, do it to no purpose."`}
+                    {isServerLock && dailyLock?.reason === 'EMOTIONAL_CHECK_FAILED' ?
+                        `"The market is a device for transferring money from the impatient to the patient."` :
+                        isLossViolation ?
+                            `"The goal of a successful trader is to make the best trades. Money is secondary."` :
+                            `"It is better to do nothing than to do what is wrong. For whatever you do, do it to no purpose."`}
                 </p>
             </div>
         </div>
