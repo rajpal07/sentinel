@@ -207,8 +207,30 @@ export function DashboardClient({ initialTrades, rules }: DashboardClientProps) 
                                 {isTimeViolation ? (
                                     <div className="flex flex-col items-end">
                                         <span>CLOSED</span>
-                                        <span className="text-[10px] opacity-75">
-                                            Opens at {rules?.trading_window_start}
+                                        <span className="text-[10px] opacity-75 whitespace-nowrap">
+                                            Opens {(() => {
+                                                const startStr = rules?.trading_window_start
+                                                if (!startStr) return 'Unknown'
+
+                                                const [startH, startM] = startStr.split(':').map(Number)
+                                                // Create date for today's start
+                                                const nextStart = new Date()
+                                                nextStart.setHours(startH, startM, 0, 0)
+
+                                                // If now is past today's start (and we are closed), it must be tomorrow
+                                                // Unless we are closed BEFORE today's start.
+                                                // But if we are closed, we are either before start OR after end.
+                                                // If now < start, next open is today.
+                                                // If now > end, next open is tomorrow.
+
+                                                const now = new Date()
+                                                if (now < nextStart) {
+                                                    return `Today at ${startStr}`
+                                                } else {
+                                                    // It's tomorrow
+                                                    return `Tomorrow at ${startStr}`
+                                                }
+                                            })()}
                                         </span>
                                     </div>
                                 ) : 'OPEN'}
