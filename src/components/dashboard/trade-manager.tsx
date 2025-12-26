@@ -6,6 +6,9 @@ import { Plus, Ban } from 'lucide-react'
 import { EmotionalGate } from '@/components/trading/emotional-gate'
 import { TradeForm } from '@/components/trading/trade-form'
 
+import { createClient } from '@/utils/supabase/client'
+import { useRouter } from 'next/navigation'
+
 export function TradeManager({ status }: { status: 'ACTIVE' | 'LOCKED' }) {
     const [gateOpen, setGateOpen] = useState(false)
     const [formOpen, setFormOpen] = useState(false)
@@ -15,9 +18,14 @@ export function TradeManager({ status }: { status: 'ACTIVE' | 'LOCKED' }) {
         setFormOpen(true)
     }
 
-    const handleGateFail = () => {
-        // Maybe lock user out?
-        // For now just close or show failure state in modal (which it does)
+    const supabase = createClient()
+    const router = useRouter() // Import from 'next/navigation' is needed in imports
+
+    const handleGateFail = async () => {
+        // Lock user out persistently
+        await supabase.rpc('lock_session', { p_reason: 'EMOTIONAL_CHECK_FAILED' })
+        setGateOpen(false)
+        router.refresh()
     }
 
     return (
