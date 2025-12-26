@@ -204,7 +204,14 @@ export function DashboardClient({ initialTrades, rules }: DashboardClientProps) 
                                 </div>
                             </div>
                             <span className={`text-xs ${isTimeViolation ? 'text-red-500 font-bold' : 'text-muted-foreground'}`}>
-                                {isTimeViolation ? 'CLOSED' : 'OPEN'}
+                                {isTimeViolation ? (
+                                    <div className="flex flex-col items-end">
+                                        <span>CLOSED</span>
+                                        <span className="text-[10px] opacity-75">
+                                            Opens at {rules?.trading_window_start}
+                                        </span>
+                                    </div>
+                                ) : 'OPEN'}
                             </span>
                         </div>
                     </CardContent>
