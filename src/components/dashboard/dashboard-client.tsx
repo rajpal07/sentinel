@@ -168,7 +168,9 @@ export function DashboardClient({ initialTrades, rules, isServerLocked, serverLo
                                     <div className="flex flex-col">
                                         <span className="text-sm font-medium text-red-400">Protocol Lock</span>
                                         <span className="text-xs text-muted-foreground">
-                                            {serverLockReason === 'EMOTIONAL_CHECK_FAILED' ? 'Emotional Gate Failure' : 'System Lockdown'}
+                                            {serverLockReason === 'EMOTIONAL_CHECK_FAILED'
+                                                ? 'Emotional Gate Failure'
+                                                : (serverLockReason || 'System Lockdown')}
                                         </span>
                                     </div>
                                 </div>
@@ -188,9 +190,16 @@ export function DashboardClient({ initialTrades, rules, isServerLocked, serverLo
                                     <span className="text-xs text-muted-foreground">Hard stop at -${rulesMaxLoss}</span>
                                 </div>
                             </div>
-                            <span className={`text-sm font-mono ${isLossViolation ? 'text-red-500 font-bold' : ''}`}>
-                                ${Math.abs(dailyPnL).toFixed(2)}
-                            </span>
+                            <div className="text-right">
+                                <span className={`text-sm font-mono block ${isLossViolation ? 'text-red-500 font-bold' : ''}`}>
+                                    ${Math.abs(dailyPnL).toFixed(2)}
+                                </span>
+                                {isLossViolation && (
+                                    <span className="text-[10px] font-bold text-red-500 uppercase tracking-wider">
+                                        LIMIT HIT
+                                    </span>
+                                )}
+                            </div>
                         </div>
 
                         {/* Trade Frequency Rule */}
