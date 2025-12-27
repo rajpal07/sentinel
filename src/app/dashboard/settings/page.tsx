@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Loader2, Save, Shield, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -15,7 +16,8 @@ export default function SettingsPage() {
         max_daily_loss: 0 as number | string,
         max_trades_per_day: 0 as number | string,
         trading_window_start: '09:30',
-        trading_window_end: '16:00'
+        trading_window_end: '16:00',
+        timezone: 'UTC'
     })
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
@@ -38,7 +40,8 @@ export default function SettingsPage() {
                     max_daily_loss: data.max_daily_loss,
                     max_trades_per_day: data.max_trades_per_day,
                     trading_window_start: data.trading_window_start,
-                    trading_window_end: data.trading_window_end
+                    trading_window_end: data.trading_window_end,
+                    timezone: data.timezone || 'UTC'
                 })
             }
             setLoading(false)
@@ -52,7 +55,7 @@ export default function SettingsPage() {
         if (!user) return
 
         // Convert string values back to numbers for storage
-        const numericRules = {
+        const updatedRules = {
             ...rules,
             max_risk_per_trade_percent: Number(rules.max_risk_per_trade_percent),
             max_daily_loss: Number(rules.max_daily_loss),
@@ -61,7 +64,7 @@ export default function SettingsPage() {
 
         const { error } = await supabase
             .from('rules')
-            .update(numericRules)
+            .update(updatedRules)
             .eq('user_id', user.id)
 
         if (error) {
@@ -98,6 +101,27 @@ export default function SettingsPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
+
+                    <div className="space-y-2">
+                        <Label>Timezone Authority</Label>
+                        <Select value={rules.timezone} onValueChange={(val) => setRules({ ...rules, timezone: val })}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select Timezone" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="UTC">UTC (Universal)</SelectItem>
+                                <SelectItem value="Asia/Kolkata">Asia/Kolkata (IST)</SelectItem>
+                                <SelectItem value="America/New_York">America/New_York (EST)</SelectItem>
+                                <SelectItem value="Europe/London">Europe/London (GMT)</SelectItem>
+                                <SelectItem value="Asia/Tokyo">Asia/Tokyo (JST)</SelectItem>
+                                <SelectItem value="Australia/Sydney">Australia/Sydney (AEST)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <p className="text-[10px] text-muted-foreground">
+                            Defines when your "Daily" PnL and Trade Count resets.
+                        </p>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                             <Label>Max Risk Per Trade (%)</Label>
