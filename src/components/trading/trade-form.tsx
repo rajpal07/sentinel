@@ -202,6 +202,10 @@ export function TradeForm({ open, onOpenChange, onSuccess, initialData }: TradeF
 
         const isClosed = !!formData.exit_price
 
+        // Generate Format HH:mm:ss for Postgres TIME type
+        const now = new Date()
+        const clientTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`
+
         // Prepare Payload for RPC
         const rpcPayload = {
             p_symbol: formData.symbol.toUpperCase(),
@@ -212,7 +216,8 @@ export function TradeForm({ open, onOpenChange, onSuccess, initialData }: TradeF
             p_risk_amount: calculatedRisk,
             p_exit_price: isClosed ? Number(formData.exit_price) : null,
             p_pnl: isClosed ? pnlPreview : null,
-            p_status: isClosed ? 'CLOSED' : 'OPEN'
+            p_status: isClosed ? 'CLOSED' : 'OPEN',
+            p_client_time: clientTime
         }
 
         try {

@@ -17,7 +17,7 @@ export function getRecentTradesStartDate(): string {
  * @param endStr - End time format "HH:mm" (e.g. "16:00")
  */
 export function isWithinTimeWindow(startStr: string, endStr: string): boolean {
-    if (!startStr || !endStr) return true; // No window defined = always open
+    if (!startStr || !startStr) return true; // No window defined = always open
 
     const now = new Date();
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
@@ -28,12 +28,6 @@ export function isWithinTimeWindow(startStr: string, endStr: string): boolean {
     const startMinutes = startH * 60 + startM;
     const endMinutes = endH * 60 + endM;
 
-    // Handle overnight windows (e.g., 22:00 to 06:00)
-    if (endMinutes < startMinutes) {
-        return currentMinutes >= startMinutes || currentMinutes <= endMinutes;
-    }
-
-    // Standard window (e.g., 09:00 to 17:00)
     return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
 }
 

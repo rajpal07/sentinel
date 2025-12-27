@@ -1,5 +1,6 @@
 -- Applied on 2025-12-28
--- Fixes: "text ->> unknown" error (Paranoid Mode) and Overnight Trading Window logic
+-- Fixes: "text ->> unknown" error (Paranoid Mode)
+-- Fixes: Timezone Mismatch (Uses p_client_time from frontend)
 
 CREATE OR REPLACE FUNCTION submit_trade(
     p_symbol TEXT,
@@ -10,7 +11,8 @@ CREATE OR REPLACE FUNCTION submit_trade(
     p_risk_amount NUMERIC,
     p_exit_price NUMERIC,
     p_pnl NUMERIC,
-    p_status TEXT
+    p_status TEXT,
+    p_client_time TIME DEFAULT NULL
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -73,7 +75,13 @@ BEGIN
     IF (v_rules->>'trading_window_start') IS NOT NULL AND (v_rules->>'trading_window_end') IS NOT NULL THEN
         v_start_time := (v_rules->>'trading_window_start')::time;
         v_end_time := (v_rules->>'trading_window_end')::time;
-        v_now_time := CURRENT_TIME;
+        
+        -- USE CLIENT TIME IF PROVIDED, ELSE SERVER TIME (UTC)
+        IF p_client_time IS NOT NULL THEN
+            v_now_time := p_client_time;
+        ELSE
+            v_now_time := CURRENT_TIME;
+        END IF;
         
         -- Overnight Logic
         IF v_end_time < v_start_time THEN
