@@ -1,0 +1,71 @@
+-- FEATURE DISABLED BY USER REQUEST (Future Implementation)
+-- -- Function to check and remove locks if metrics are safe
+-- CREATE OR REPLACE FUNCTION public.rectify_daily_locks()
+-- RETURNS TRIGGER AS $$
+-- DECLARE
+--     v_user_id UUID;
+--     v_date DATE;
+--     v_total_pnl NUMERIC;
+--     v_trade_count INTEGER;
+--     v_max_loss NUMERIC;
+--     v_max_trades INTEGER;
+-- BEGIN
+--     -- Determine Context
+--     IF (TG_OP = 'DELETE') THEN
+--         v_user_id := OLD.user_id;
+--         v_date := DATE(OLD.executed_at); 
+--     ELSE
+--         -- UPDATE
+--         v_user_id := NEW.user_id;
+--         v_date := DATE(NEW.executed_at);
+--     END IF;
+
+--     -- Fetch Rules
+--     SELECT max_daily_loss, max_trades_per_day INTO v_max_loss, v_max_trades
+--     FROM rules WHERE user_id = v_user_id;
+
+--     -- 1. RECTIFY MAX LOSS LOCK
+--     -- If max_daily_loss is defined
+--     IF v_max_loss IS NOT NULL THEN
+--         -- Calculate current PnL for the day
+--         SELECT COALESCE(SUM(pnl), 0) INTO v_total_pnl 
+--         FROM trades 
+--         WHERE user_id = v_user_id 
+--         AND DATE(executed_at) = v_date;
+
+--         -- If PnL is safe (greater than negative max loss), remove lock
+--         IF (v_total_pnl > -ABS(v_max_loss)) THEN
+--             DELETE FROM daily_locks 
+--             WHERE user_id = v_user_id 
+--             AND lock_date = v_date 
+--             AND reason = 'MAX_LOSS_HIT';
+--         END IF;
+--     END IF;
+
+--     -- 2. RECTIFY TRADE FREQUENCY LOCK
+--     -- If max_trades_per_day is defined
+--     IF v_max_trades IS NOT NULL THEN
+--         -- Calculate current count
+--         SELECT COUNT(*) INTO v_trade_count
+--         FROM trades
+--         WHERE user_id = v_user_id 
+--         AND DATE(executed_at) = v_date;
+        
+--         -- If Count is safe, remove lock
+--         IF (v_trade_count < v_max_trades) THEN
+--             DELETE FROM daily_locks 
+--             WHERE user_id = v_user_id 
+--             AND lock_date = v_date 
+--             AND reason IN ('MAX_TRADES_EXCEEDED', 'MAX_TRADES_EXCEEDED_AUTO');
+--         END IF;
+--     END IF;
+
+--     RETURN NULL;
+-- END;
+-- $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- -- Create Trigger
+-- DROP TRIGGER IF EXISTS trigger_rectify_locks ON trades;
+-- -- CREATE TRIGGER trigger_rectify_locks
+-- -- AFTER DELETE OR UPDATE ON trades
+-- -- FOR EACH ROW EXECUTE FUNCTION public.rectify_daily_locks();
