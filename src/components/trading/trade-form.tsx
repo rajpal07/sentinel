@@ -316,7 +316,7 @@ export function TradeForm({ open, onOpenChange, onSuccess, initialData }: TradeF
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="bg-card border-border/50 sm:max-w-[425px]">
+            <DialogContent className="bg-card border-border/50 sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>{initialData ? 'Edit Trade' : 'Log Trade'}</DialogTitle>
                     <p className="text-xs text-muted-foreground">Fill "Exit Price" to log a completed trade.</p>
