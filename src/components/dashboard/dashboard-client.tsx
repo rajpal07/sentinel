@@ -161,14 +161,23 @@ export function DashboardClient({ initialTrades, rules, isServerLocked, serverLo
                     <CardContent className="flex-1 space-y-4">
 
                         {/* Server Lock / Emotional Gate Display */}
-                        {isServerLocked && (
+                        {isServerLocked && !isLossViolation && !isTradeCountViolation && !isTimeViolation && (
                             <div className="p-3 rounded-lg border flex items-center justify-between bg-red-500/10 border-red-500/50">
                                 <div className="flex items-center gap-3">
                                     <XCircle className="w-4 h-4 text-red-500" />
                                     <div className="flex flex-col">
                                         <span className="text-sm font-medium text-red-400">Protocol Lock</span>
                                         <span className="text-xs text-muted-foreground">
-                                            {serverLockReason === 'EMOTIONAL_CHECK_FAILED' ? 'Emotional Gate Failure' : 'System Lockdown'}
+                                            {(() => {
+                                                const map: { [key: string]: string } = {
+                                                    'MAX_LOSS_HIT': 'Max Daily Loss Exceeded',
+                                                    'MAX_TRADES_EXCEEDED': 'Trade Frequency Limit Hit',
+                                                    'TIME_WINDOW_VIOLATION': 'Trading Window Violation',
+                                                    'EMOTIONAL_CHECK_FAILED': 'Emotional Gate Failure',
+                                                    'LOCKED_SESSION_ATTEMPT': 'Session Locked'
+                                                }
+                                                return map[serverLockReason || ''] || serverLockReason || 'System Lockdown'
+                                            })()}
                                         </span>
                                     </div>
                                 </div>
@@ -189,7 +198,7 @@ export function DashboardClient({ initialTrades, rules, isServerLocked, serverLo
                                 </div>
                             </div>
                             <span className={`text-sm font-mono ${isLossViolation ? 'text-red-500 font-bold' : ''}`}>
-                                ${Math.abs(dailyPnL).toFixed(2)}
+                                {dailyPnL < 0 ? '-' : ''}${Math.abs(dailyPnL).toFixed(2)}
                             </span>
                         </div>
 
