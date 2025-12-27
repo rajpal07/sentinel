@@ -31,17 +31,13 @@ export default async function DashboardPage() {
         .gte('executed_at', recentTradesStartDate)
         .order('executed_at', { ascending: false })
 
-    // Fetch Lock Status
-    const today = new Date().toISOString().split('T')[0]
+    // Fetch Lock Status (Timezone Aware via RPC)
     const { data: dailyLock } = await supabase
-        .from('daily_locks')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('lock_date', today)
-        .single()
+        .rpc('get_my_active_lock', { p_user_id: user.id })
+        .maybeSingle()
 
     const isServerLocked = !!dailyLock
-    const serverLockReason = dailyLock?.reason || null
+    const serverLockReason = (dailyLock as { reason?: string })?.reason || null
 
     return <DashboardClient initialTrades={initialTrades || []} rules={rules} isServerLocked={isServerLocked} serverLockReason={serverLockReason} />
 }
