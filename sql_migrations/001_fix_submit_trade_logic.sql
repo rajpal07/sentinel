@@ -1,5 +1,5 @@
 -- Applied on 2025-12-28
--- Fixes: "text ->> unknown" error and Overnight Trading Window logic
+-- Fixes: "text ->> unknown" error (Paranoid Mode) and Overnight Trading Window logic
 
 CREATE OR REPLACE FUNCTION submit_trade(
     p_symbol TEXT,
@@ -19,6 +19,7 @@ AS $$
 DECLARE
     v_user_id UUID;
     v_is_locked BOOLEAN;
+    v_rule_record RECORD;
     v_rules JSONB;
     v_max_loss NUMERIC;
     v_max_trades INTEGER;
@@ -33,53 +34,58 @@ BEGIN
         RETURN jsonb_build_object('status', 'ERROR', 'message', 'Unauthorized');
     END IF;
 
-    -- Check for existing daily lock
+    -- Check locks
     SELECT EXISTS(SELECT 1 FROM daily_locks WHERE user_id = v_user_id AND lock_date = CURRENT_DATE) INTO v_is_locked;
     IF v_is_locked THEN
         INSERT INTO violations (user_id, reason, details) VALUES (v_user_id, 'LOCKED_SESSION_ATTEMPT', jsonb_build_object('symbol', p_symbol));
         RETURN jsonb_build_object('status', 'BLOCKED', 'message', 'Session is strictly locked.');
     END IF;
 
-    -- Fetch Rules
-    SELECT to_jsonb(r) FROM rules r WHERE r.user_id = v_user_id INTO v_rules;
+    -- Fetch Rules explicit
+    SELECT * FROM rules WHERE user_id = v_user_id LIMIT 1 INTO v_rule_record;
     
-    -- Parse Rules safely
+    IF v_rule_record IS NULL THEN
+         v_rules := '{}'::jsonb;
+    ELSE
+         v_rules := to_jsonb(v_rule_record);
+    END IF;
+
+    -- Extract values with explicit casts
     v_max_loss := COALESCE((v_rules->>'max_daily_loss')::numeric, 500);
     v_max_trades := COALESCE((v_rules->>'max_trades_per_day')::numeric, 5);
-    
-    -- Check Trade Frequency
-    SELECT 
-        COALESCE(SUM(pnl), 0), 
-        COUNT(*) 
+
+    -- ... stats ...
+    SELECT COALESCE(SUM(pnl), 0), COUNT(*) 
     INTO v_current_pnl, v_trade_count
     FROM trades 
-    WHERE user_id = v_user_id 
-    AND executed_at >= CURRENT_DATE;
+    WHERE user_id = v_user_id AND executed_at >= CURRENT_DATE;
 
+    -- Trade Limit
     IF v_trade_count >= v_max_trades THEN
-        INSERT INTO violations (user_id, reason, details) VALUES (v_user_id, 'MAX_TRADES_EXCEEDED', jsonb_build_object('limit', v_max_trades, 'current', v_trade_count));
+        INSERT INTO violations (user_id, reason, details) 
+        VALUES (v_user_id, 'MAX_TRADES_EXCEEDED', jsonb_build_object('limit', v_max_trades, 'current', v_trade_count));
+        
         INSERT INTO daily_locks (user_id, reason) VALUES (v_user_id, 'MAX_TRADES_EXCEEDED') ON CONFLICT DO NOTHING;
         RETURN jsonb_build_object('status', 'BLOCKED', 'message', 'Daily trade limit exceeded.');
     END IF;
 
-    -- Check Time Window (With Overnight Support)
+    -- Time Window
     IF (v_rules->>'trading_window_start') IS NOT NULL AND (v_rules->>'trading_window_end') IS NOT NULL THEN
         v_start_time := (v_rules->>'trading_window_start')::time;
         v_end_time := (v_rules->>'trading_window_end')::time;
         v_now_time := CURRENT_TIME;
         
+        -- Overnight Logic
         IF v_end_time < v_start_time THEN
-            -- Overnight Window (e.g. 22:00 to 06:00)
-            -- Block if time is IN THE GAP (After end AND Before Start)
             IF v_now_time > v_end_time AND v_now_time < v_start_time THEN
-                 INSERT INTO violations (user_id, reason, details) VALUES (v_user_id, 'TIME_WINDOW_VIOLATION', jsonb_build_object('window', v_rules->>'trading_window_start' || '-' || v_rules->>'trading_window_end'));
+                 INSERT INTO violations (user_id, reason, details) 
+                 VALUES (v_user_id, 'TIME_WINDOW_VIOLATION', jsonb_build_object('window', (v_rules->>'trading_window_start') || '-' || (v_rules->>'trading_window_end')));
                  RETURN jsonb_build_object('status', 'BLOCKED', 'message', 'Trading window closed.');
             END IF;
         ELSE
-            -- Standard Window
-            -- Block if time is OUTSIDE (Before Start OR After End)
             IF v_now_time < v_start_time OR v_now_time > v_end_time THEN
-                 INSERT INTO violations (user_id, reason, details) VALUES (v_user_id, 'TIME_WINDOW_VIOLATION', jsonb_build_object('window', v_rules->>'trading_window_start' || '-' || v_rules->>'trading_window_end'));
+                 INSERT INTO violations (user_id, reason, details) 
+                 VALUES (v_user_id, 'TIME_WINDOW_VIOLATION', jsonb_build_object('window', (v_rules->>'trading_window_start') || '-' || (v_rules->>'trading_window_end')));
                  RETURN jsonb_build_object('status', 'BLOCKED', 'message', 'Trading window closed.');
             END IF;
         END IF;
@@ -94,12 +100,15 @@ BEGIN
         p_stop_loss, p_exit_price, p_pnl, p_status, p_risk_amount, NOW()
     );
 
-    -- Check Max Loss after this trade
+    -- Max Loss Check
     IF p_status = 'CLOSED' AND p_pnl < 0 THEN
          v_current_pnl := v_current_pnl + p_pnl;
          IF v_current_pnl <= (-1 * ABS(v_max_loss)) THEN
-            INSERT INTO violations (user_id, reason, details) VALUES (v_user_id, 'MAX_LOSS_HIT', jsonb_build_object('limit', v_max_loss, 'current', v_current_pnl));
+            INSERT INTO violations (user_id, reason, details) 
+            VALUES (v_user_id, 'MAX_LOSS_HIT', jsonb_build_object('limit', v_max_loss, 'current', v_current_pnl));
+            
             INSERT INTO daily_locks (user_id, reason) VALUES (v_user_id, 'MAX_LOSS_HIT') ON CONFLICT DO NOTHING;
+            
              RETURN jsonb_build_object('status', 'SUCCESS', 'message', 'Trade logged. DAILY LOSS LIMIT HIT. Account Locked.');
          END IF;
     END IF;
