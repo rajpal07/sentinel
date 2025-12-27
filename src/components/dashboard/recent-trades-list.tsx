@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
-import { TrendingUp, TrendingDown } from 'lucide-react'
+import { TrendingUp, TrendingDown, Edit, Trash2, XCircle } from 'lucide-react'
 import { TradeForm } from '@/components/trading/trade-form'
+import { createClient } from '@/utils/supabase/client'
+import { useRouter } from 'next/navigation'
 
 interface Trade {
     id: string
@@ -18,13 +20,95 @@ interface Trade {
     pnl: number | null
 }
 
+interface ContextMenuState {
+    visible: boolean
+    trade: Trade | null
+    x: number
+    y: number
+}
+
 export function RecentTradesList({ trades }: { trades: Trade[] }) {
     const [editingTrade, setEditingTrade] = useState<Trade | null>(null)
     const [formOpen, setFormOpen] = useState(false)
+    const [contextMenu, setContextMenu] = useState<ContextMenuState>({
+        visible: false,
+        trade: null,
+        x: 0,
+        y: 0
+    })
+    const [isDeleting, setIsDeleting] = useState(false)
+    const longPressTimer = useRef<NodeJS.Timeout | null>(null)
+    const router = useRouter()
+    const supabase = createClient()
+
+    // Close context menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = () => {
+            if (contextMenu.visible) {
+                setContextMenu({ visible: false, trade: null, x: 0, y: 0 })
+            }
+        }
+        document.addEventListener('click', handleClickOutside)
+        return () => document.removeEventListener('click', handleClickOutside)
+    }, [contextMenu.visible])
+
+    const handleTouchStart = (trade: Trade, e: React.TouchEvent) => {
+        const touch = e.touches[0]
+        longPressTimer.current = setTimeout(() => {
+            // Show context menu
+            setContextMenu({
+                visible: true,
+                trade,
+                x: touch.clientX,
+                y: touch.clientY
+            })
+            // Haptic feedback if available
+            if (navigator.vibrate) {
+                navigator.vibrate(50)
+            }
+        }, 500) // 500ms long press
+    }
+
+    const handleTouchEnd = () => {
+        if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current)
+        }
+    }
 
     const handleEdit = (trade: Trade) => {
         setEditingTrade(trade)
         setFormOpen(true)
+        setContextMenu({ visible: false, trade: null, x: 0, y: 0 })
+    }
+
+    const handleDelete = async (trade: Trade) => {
+        if (!confirm(`Delete ${trade.symbol} trade?`)) return
+
+        setIsDeleting(true)
+        setContextMenu({ visible: false, trade: null, x: 0, y: 0 })
+
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+
+        const { error } = await supabase
+            .from('trades')
+            .delete()
+            .eq('id', trade.id)
+            .eq('user_id', user.id)
+
+        if (error) {
+            alert(`Error: ${error.message}`)
+        } else {
+            router.refresh()
+        }
+        setIsDeleting(false)
+    }
+
+    const handleCloseTrade = (trade: Trade) => {
+        // Open edit form with the trade pre-filled, user can add exit price
+        setEditingTrade(trade)
+        setFormOpen(true)
+        setContextMenu({ visible: false, trade: null, x: 0, y: 0 })
     }
 
     return (
@@ -34,6 +118,9 @@ export function RecentTradesList({ trades }: { trades: Trade[] }) {
                     {trades.map((trade) => (
                         <Card
                             key={trade.id}
+                            onTouchStart={(e) => handleTouchStart(trade, e)}
+                            onTouchEnd={handleTouchEnd}
+                            onTouchCancel={handleTouchEnd}
                             onClick={() => handleEdit(trade)}
                             className="bg-card/30 border-border/30 hover:bg-card/50 transition-colors cursor-pointer active:scale-[0.99] transform duration-100"
                         >
@@ -82,11 +169,54 @@ export function RecentTradesList({ trades }: { trades: Trade[] }) {
                 </Card>
             )}
 
+            {/* Context Menu */}
+            {contextMenu.visible && contextMenu.trade && (
+                <div
+                    className="fixed z-50 bg-card border border-border rounded-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+                    style={{
+                        left: `${Math.min(contextMenu.x, window.innerWidth - 200)}px`,
+                        top: `${Math.min(contextMenu.y, window.innerHeight - 200)}px`,
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <div className="py-2 min-w-[180px]">
+                        <button
+                            onClick={() => handleEdit(contextMenu.trade!)}
+                            className="w-full px-4 py-3 flex items-center gap-3 hover:bg-accent transition-colors text-left"
+                        >
+                            <Edit className="w-4 h-4 text-blue-400" />
+                            <span className="text-sm font-medium">Edit Trade</span>
+                        </button>
+
+                        {contextMenu.trade.status === 'OPEN' && (
+                            <button
+                                onClick={() => handleCloseTrade(contextMenu.trade!)}
+                                className="w-full px-4 py-3 flex items-center gap-3 hover:bg-accent transition-colors text-left"
+                            >
+                                <XCircle className="w-4 h-4 text-yellow-400" />
+                                <span className="text-sm font-medium">Close Trade</span>
+                            </button>
+                        )}
+
+                        <button
+                            onClick={() => handleDelete(contextMenu.trade!)}
+                            disabled={isDeleting}
+                            className="w-full px-4 py-3 flex items-center gap-3 hover:bg-red-500/10 transition-colors text-left disabled:opacity-50"
+                        >
+                            <Trash2 className="w-4 h-4 text-red-400" />
+                            <span className="text-sm font-medium text-red-400">
+                                {isDeleting ? 'Deleting...' : 'Delete Trade'}
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <TradeForm
                 open={formOpen}
                 onOpenChange={(open) => {
                     setFormOpen(open)
-                    if (!open) setEditingTrade(null) // Reset on close
+                    if (!open) setEditingTrade(null)
                 }}
                 onSuccess={() => { }}
                 initialData={editingTrade}
