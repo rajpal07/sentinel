@@ -262,19 +262,15 @@ export function TradeForm({ open, onOpenChange, onSuccess, initialData }: TradeF
 
                 if (error) throw error
 
-                // RPC returns JSON { status, message }
-                // Supabase .rpc() .data is the return value
-                const result = data as { status: string, message: string }
+                // RPC returns JSONB: { success: boolean, error?: string, trade_id?: string }
+                const result = data as { success: boolean; error?: string; trade_id?: string }
 
-                if (result.status === 'BLOCKED') {
-                    setError(`🚫 ${result.message}`)
-                    // Do NOT close form, let them see why
-                } else if (result.status === 'SUCCESS') {
+                if (!result.success) {
+                    setError(result.error || 'Trade submission failed')
+                } else {
                     onSuccess()
                     onOpenChange(false)
                     router.refresh()
-                } else {
-                    setError("Unexpected response from server.")
                 }
             }
         } catch (err: any) {
