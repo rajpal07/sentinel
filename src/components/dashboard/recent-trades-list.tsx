@@ -122,7 +122,7 @@ export function RecentTradesList({ trades }: { trades: Trade[] }) {
                             onTouchEnd={handleTouchEnd}
                             onTouchCancel={handleTouchEnd}
                             onClick={() => handleEdit(trade)}
-                            className="bg-card/30 border-border/30 hover:bg-card/50 transition-colors cursor-pointer active:scale-[0.99] transform duration-100"
+                            className="bg-card/30 border-border/30 hover:bg-card/50 transition-colors cursor-pointer active:scale-[0.99] transform duration-100 select-none touch-manipulation"
                         >
                             <CardContent className="p-4 flex items-center justify-between">
                                 <div className="flex items-center gap-4 flex-1 min-w-0">
