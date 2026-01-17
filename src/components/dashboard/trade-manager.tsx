@@ -6,7 +6,7 @@ import { Plus, Ban } from 'lucide-react'
 import { EmotionalGate } from '@/components/trading/emotional-gate'
 import { TradeForm } from '@/components/trading/trade-form'
 
-import { createClient } from '@/utils/supabase/client'
+import { lockSessionAction } from '@/actions/user-actions'
 import { useRouter } from 'next/navigation'
 
 export function TradeManager({ status }: { status: 'ACTIVE' | 'LOCKED' }) {
@@ -18,12 +18,11 @@ export function TradeManager({ status }: { status: 'ACTIVE' | 'LOCKED' }) {
         setFormOpen(true)
     }
 
-    const supabase = createClient()
-    const router = useRouter() // Import from 'next/navigation' is needed in imports
+    const router = useRouter()
 
     const handleGateFail = async () => {
         try {
-            await supabase.rpc('lock_session', { p_reason: 'EMOTIONAL_CHECK_FAILED' })
+            await lockSessionAction('EMOTIONAL_CHECK_FAILED')
         } catch (e) {
             console.error("Exception during lock:", e)
         }

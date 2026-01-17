@@ -1,44 +1,59 @@
-import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { getRecentTradesStartDate } from '@/lib/date-utils'
 import { DashboardClient } from '@/components/dashboard/dashboard-client'
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
+import { pool } from "@/lib/db";
 
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const session = await auth.api.getSession({
+        headers: await headers()
+    })
 
-    if (!user) {
+    if (!session) {
         redirect('/login')
     }
 
+    const { user } = session;
+
     // Check Setup
-    const { data: rules } = await supabase.from('rules').select('*').eq('user_id', user.id).single()
+    // rules table
+    const rulesRes = await pool.query('SELECT * FROM rules WHERE user_id = $1 LIMIT 1', [user.id]);
+    const rules = rulesRes.rows[0];
+
     if (rules && !rules.setup_complete) {
         redirect('/start')
     }
 
     // Fetch Data
-    // We fetch a buffer of trades (e.g. last 48 hours) so the client can filter
-    // for "Today" based on their local time.
+    // We fetch a buffer of trades (e.g. last 48 hours)
     const recentTradesStartDate = getRecentTradesStartDate()
 
-    const { data: initialTrades } = await supabase
-        .from('trades')
-        .select('*')
-        .eq('user_id', user.id)
-        .gte('executed_at', recentTradesStartDate)
-        .order('executed_at', { ascending: false })
+    const tradesRes = await pool.query(`
+        SELECT * FROM trades 
+        WHERE user_id = $1 
+        AND executed_at >= $2
+        ORDER BY executed_at DESC
+    `, [user.id, recentTradesStartDate]);
 
-    // Fetch Lock Status (Timezone Aware via RPC)
-    const { data: dailyLock } = await supabase
-        .rpc('get_my_active_lock', { p_user_id: user.id })
-        .maybeSingle()
+    const initialTrades = tradesRes.rows;
+
+    // Fetch Lock Status (Timezone Aware via RPC or direct query)
+    // Direct Query:
+    // SELECT * FROM daily_locks WHERE user_id = $1 AND lock_date = CURRENT_DATE
+    const lockRes = await pool.query(`
+        SELECT * FROM daily_locks 
+        WHERE user_id = $1 
+        AND lock_date = CURRENT_DATE 
+        LIMIT 1
+    `, [user.id]);
+
+    const dailyLock = lockRes.rows[0];
 
     const isServerLocked = !!dailyLock
-    const serverLockReason = (dailyLock as { reason?: string })?.reason || null
+    const serverLockReason = dailyLock?.reason || null
 
     return <DashboardClient initialTrades={initialTrades || []} rules={rules} isServerLocked={isServerLocked} serverLockReason={serverLockReason} />
 }
-

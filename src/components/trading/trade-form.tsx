@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { createClient } from '@/utils/supabase/client'
+import { submitTradeAction, deleteTradeAction } from '@/actions/trade-actions'
 import { Loader2, Search, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -168,7 +168,7 @@ export function TradeForm({ open, onOpenChange, onSuccess, initialData }: TradeF
             : (entry - exit) * size
     }
 
-    const supabase = createClient()
+    // const supabase = createClient() // Removed
     const router = useRouter()
 
     const handleSubmit = async () => {
@@ -197,8 +197,7 @@ export function TradeForm({ open, onOpenChange, onSuccess, initialData }: TradeF
 
         const calculatedRisk = Math.abs(entry - stop) * sizeVal
 
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
+
 
         const isClosed = !!formData.exit_price
 
@@ -235,43 +234,17 @@ export function TradeForm({ open, onOpenChange, onSuccess, initialData }: TradeF
                 // Actually, the user requirement is mainly about "Trade Logging" (Creation).
                 // I will keep Update as is for now to avoid "breaking app", but Insert MUST use RPC.
 
-                const { error } = await supabase
-                    .from('trades')
-                    .update({
-                        symbol: rpcPayload.p_symbol,
-                        direction: rpcPayload.p_direction,
-                        entry_price: rpcPayload.p_entry_price,
-                        exit_price: rpcPayload.p_exit_price,
-                        pnl: rpcPayload.p_pnl,
-                        size: rpcPayload.p_size,
-                        risk_amount: rpcPayload.p_risk_amount,
-                        status: rpcPayload.p_status
-                    })
-                    .eq('id', initialData.id)
-                    .eq('user_id', user.id)
+                const result = await submitTradeAction(rpcPayload)
 
-                if (error) throw error
+                if (!result.success) {
+                    setError(result.error || 'Trade submission failed')
+                    setLoading(false)
+                    return
+                }
 
                 onSuccess()
                 onOpenChange(false)
                 router.refresh()
-
-            } else {
-                // INSERT via RPC
-                const { data, error } = await supabase.rpc('submit_trade', rpcPayload)
-
-                if (error) throw error
-
-                // RPC returns JSONB: { success: boolean, error?: string, trade_id?: string }
-                const result = data as { success: boolean; error?: string; trade_id?: string }
-
-                if (!result.success) {
-                    setError(result.error || 'Trade submission failed')
-                } else {
-                    onSuccess()
-                    onOpenChange(false)
-                    router.refresh()
-                }
             }
         } catch (err: any) {
             setError(err.message || "Failed to submit trade")
@@ -290,17 +263,10 @@ export function TradeForm({ open, onOpenChange, onSuccess, initialData }: TradeF
         setIsDeleting(true)
         setError(null)
 
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
+        const result = await deleteTradeAction(initialData.id)
 
-        const { error } = await supabase
-            .from('trades')
-            .delete()
-            .eq('id', initialData.id)
-            .eq('user_id', user.id)
-
-        if (error) {
-            setError(error.message)
+        if (!result.success) {
+            setError(result.error || 'Delete failed')
             setIsDeleting(false)
             setLoading(false)
         } else {

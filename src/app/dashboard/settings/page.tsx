@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/utils/supabase/client'
+import { updateRulesAction, getUserRulesAction } from '@/actions/user-actions'
+import { authClient } from '@/lib/auth-client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,20 +22,12 @@ export default function SettingsPage() {
     })
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
-    const supabase = createClient()
 
     useEffect(() => {
         const fetchRules = async () => {
-            const { data: { user } } = await supabase.auth.getUser()
-            if (!user) return
-
-            const { data, error } = await supabase
-                .from('rules')
-                .select('*')
-                .eq('user_id', user.id)
-                .single()
-
-            if (data) {
+            const result = await getUserRulesAction()
+            if (result.success && result.data) {
+                const data = result.data
                 setRules({
                     max_risk_per_trade_percent: data.max_risk_per_trade_percent,
                     max_daily_loss: data.max_daily_loss,
@@ -51,8 +44,6 @@ export default function SettingsPage() {
 
     const handleSave = async () => {
         setSaving(true)
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
 
         // Convert string values back to numbers for storage
         const updatedRules = {
@@ -62,13 +53,10 @@ export default function SettingsPage() {
             max_trades_per_day: Number(rules.max_trades_per_day)
         }
 
-        const { error } = await supabase
-            .from('rules')
-            .update(updatedRules)
-            .eq('user_id', user.id)
+        const result = await updateRulesAction(updatedRules)
 
-        if (error) {
-            toast.error("Failed to save settings")
+        if (!result.success) {
+            toast.error("Failed to save settings: " + result.error)
         } else {
             toast.success("Protocol updated successfully")
         }
@@ -201,7 +189,7 @@ export default function SettingsPage() {
                             <p className="text-xs text-muted-foreground">End your current session.</p>
                         </div>
                         <Button variant="destructive" className="cursor-pointer" onClick={async () => {
-                            await supabase.auth.signOut()
+                            await authClient.signOut()
                             window.location.href = '/login'
                         }}>
                             Sign Out

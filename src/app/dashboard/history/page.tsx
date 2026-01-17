@@ -1,4 +1,6 @@
-import { createClient } from '@/utils/supabase/server'
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
+import { pool } from "@/lib/db";
 import { redirect } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -8,24 +10,29 @@ import { ViolationsList } from '@/components/dashboard/violations-list'
 export const dynamic = 'force-dynamic'
 
 export default async function HistoryPage() {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const session = await auth.api.getSession({
+        headers: await headers()
+    })
 
-    if (!user) {
+    if (!session) {
         redirect('/login')
     }
 
-    const { data: trades } = await supabase
-        .from('trades')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('executed_at', { ascending: false })
+    const { user } = session;
 
-    const { data: violations } = await supabase
-        .from('violations')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
+    const tradesRes = await pool.query(`
+        SELECT * FROM trades 
+        WHERE user_id = $1 
+        ORDER BY executed_at DESC
+    `, [user.id]);
+    const trades = tradesRes.rows;
+
+    const violationsRes = await pool.query(`
+        SELECT * FROM violations 
+        WHERE user_id = $1 
+        ORDER BY created_at DESC
+    `, [user.id]);
+    const violations = violationsRes.rows;
 
     return (
         <div className="space-y-6">

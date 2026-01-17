@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { TrendingUp, TrendingDown, Edit, Trash2, XCircle } from 'lucide-react'
 import { TradeForm } from '@/components/trading/trade-form'
-import { createClient } from '@/utils/supabase/client'
+import { deleteTradeAction } from '@/actions/trade-actions'
 import { useRouter } from 'next/navigation'
 
 interface Trade {
@@ -39,7 +39,6 @@ export function RecentTradesList({ trades }: { trades: Trade[] }) {
     const [isDeleting, setIsDeleting] = useState(false)
     const longPressTimer = useRef<NodeJS.Timeout | null>(null)
     const router = useRouter()
-    const supabase = createClient()
 
     // Close context menu when clicking outside
     useEffect(() => {
@@ -87,20 +86,16 @@ export function RecentTradesList({ trades }: { trades: Trade[] }) {
         setIsDeleting(true)
         setContextMenu({ visible: false, trade: null, x: 0, y: 0 })
 
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
+        const result = await deleteTradeAction(trade.id)
 
-        const { error } = await supabase
-            .from('trades')
-            .delete()
-            .eq('id', trade.id)
-            .eq('user_id', user.id)
-
-        if (error) {
-            alert(`Error: ${error.message}`)
-        } else {
-            router.refresh()
+        if (!result.success) {
+            alert(`Error: ${result.error}`)
         }
+        // No need to refresh, action calls revalidatePath
+        // But for client update maybe we need router.refresh() if not fully automatic?
+        // revalidatePath refreshes server components. Client components might need explicit refresh if they don't see it.
+        // RecentTradesList receives trades as props, so checking if parent re-renders is key. Yes, server component re-renders.
+
         setIsDeleting(false)
     }
 

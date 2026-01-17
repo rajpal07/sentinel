@@ -1,19 +1,30 @@
 import { Sidebar } from "@/components/layout/sidebar";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { MobileHeader } from "@/components/layout/mobile-header";
-import { createClient } from "@/utils/supabase/server";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
 export default async function DashboardLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const session = await auth.api.getSession({
+        headers: await headers()
+    })
+
+    if (!session) {
+        redirect("/login");
+    }
+
+    const { user } = session;
 
     return (
         <div className="min-h-screen bg-background text-foreground">
+            {/* @ts-ignore - fixing types next */}
             <Sidebar user={user} />
+            {/* @ts-ignore - fixing types next */}
             <MobileHeader user={user} />
 
             {/* Added pt-20 (80px) for mobile to account for fixed header (64px) + padding */}

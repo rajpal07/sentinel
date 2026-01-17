@@ -16,7 +16,8 @@ interface DashboardClientProps {
 
 export function DashboardClient({ initialTrades, rules, isServerLocked, serverLockReason }: DashboardClientProps) {
     const [currentTime, setCurrentTime] = useState(new Date())
-    const [status, setStatus] = useState<'ACTIVE' | 'LOCKED'>('ACTIVE')
+    // Status is derived from rules and violations
+    // const [status, setStatus] = useState<'ACTIVE' | 'LOCKED'>('ACTIVE')
 
     // Hydration fix for time display
     const [mounted, setMounted] = useState(false)
@@ -54,9 +55,7 @@ export function DashboardClient({ initialTrades, rules, isServerLocked, serverLo
 
     const hasViolation = isLossViolation || isTradeCountViolation || isTimeViolation || isServerLocked
 
-    useEffect(() => {
-        setStatus(hasViolation ? 'LOCKED' : 'ACTIVE')
-    }, [hasViolation])
+    const status = hasViolation ? 'LOCKED' : 'ACTIVE'
 
     if (!mounted) return null // Prevent hydration mismatch on time
 

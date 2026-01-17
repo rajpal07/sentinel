@@ -4,21 +4,27 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { createClient } from '@/utils/supabase/client'
-import { User as SupabaseUser } from '@supabase/supabase-js'
+import { authClient } from '@/lib/auth-client'
 import { navItems } from '@/lib/nav'
 
 interface SidebarProps {
-    user: SupabaseUser | null
+    user: {
+        id: string;
+        email: string;
+        name?: string;
+        emailVerified: boolean;
+        image?: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+    } | null
 }
 
 export function Sidebar({ user }: SidebarProps) {
     const pathname = usePathname()
     const router = useRouter()
-    const supabase = createClient()
 
     const handleSignOut = async () => {
-        await supabase.auth.signOut()
+        await authClient.signOut()
         router.refresh()
         router.push('/login')
     }

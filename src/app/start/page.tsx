@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/utils/supabase/client'
+import { updateRulesAction } from '@/actions/user-actions'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,18 +20,13 @@ export default function OnboardingPage() {
     })
     const [loading, setLoading] = useState(false)
     const router = useRouter()
-    const supabase = createClient()
 
     const handleNext = () => setStep(step + 1)
     const handleBack = () => setStep(step - 1)
 
     const handleFinish = async () => {
         setLoading(true)
-        // Update rules in DB
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
 
-        // Convert string values back to numbers for storage
         const numericRules = {
             ...rules,
             max_risk_per_trade_percent: Number(rules.max_risk_per_trade_percent),
@@ -40,15 +35,12 @@ export default function OnboardingPage() {
             setup_complete: true
         }
 
-        const { error } = await supabase
-            .from('rules')
-            .update(numericRules)
-            .eq('user_id', user.id)
+        const result = await updateRulesAction(numericRules)
 
-        if (!error) {
+        if (result.success) {
             router.push('/dashboard')
         } else {
-            alert("Failed to save rules. Try again.")
+            alert("Failed to save rules. Try again. " + (result.error || ''))
             setLoading(false)
         }
     }
